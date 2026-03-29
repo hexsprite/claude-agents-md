@@ -12,6 +12,15 @@ claude plugin install agents-md
 
 Then start a Claude Code session in any project with an `AGENTS.md` file. Done.
 
+Or test locally from a clone:
+
+```bash
+claude --plugin-dir /path/to/claude-agents-md
+```
+
+> [!TIP]
+> Use `/reload-plugins` inside a running session to pick up plugin changes without restarting.
+
 ## How it works
 
 For each `AGENTS.md` found in your project tree, the plugin:
