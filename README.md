@@ -7,7 +7,8 @@ Many AI coding tools use `AGENTS.md` for project-level instructions (Cursor, Cod
 ## Install
 
 ```bash
-claude plugin install agents-md
+/plugin marketplace add hexsprite/claude-agents-md
+/plugin install agents-md@hexsprite
 ```
 
 Then start a Claude Code session in any project with an `AGENTS.md` file. Done.
