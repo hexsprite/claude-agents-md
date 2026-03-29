@@ -1,0 +1,16 @@
+{
+  "name": "claude-agents-md",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "bun test",
+    "test:session": "bun test tests/session-start.test.ts",
+    "test:filechange": "bun test tests/file-changed.test.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}

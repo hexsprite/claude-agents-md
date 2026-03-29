@@ -1,0 +1,11 @@
+{
+  "name": "agents-md",
+  "version": "1.0.0",
+  "description": "Automatically loads AGENTS.md files alongside CLAUDE.md for cross-tool compatibility",
+  "author": {
+    "name": "Scryent Inc."
+  },
+  "repository": "https://github.com/hexsprite/claude-agents-md",
+  "license": "MIT",
+  "keywords": ["agents", "instructions", "compatibility"]
+}
