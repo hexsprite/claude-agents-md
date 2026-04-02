@@ -1,4 +1,5 @@
 {
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "hexsprite",
   "owner": {
     "name": "Scryent Inc."
@@ -6,7 +7,7 @@
   "plugins": [
     {
       "name": "agents-md",
-      "source": ".",
+      "source": "./",
       "description": "Automatically loads AGENTS.md files alongside CLAUDE.md for cross-tool compatibility",
       "version": "1.0.0"
     }
