@@ -1,6 +1,6 @@
 {
   "name": "agents-md",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Automatically loads AGENTS.md files alongside CLAUDE.md for cross-tool compatibility",
   "author": {
     "name": "Scryent Inc."

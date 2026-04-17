@@ -41,8 +41,23 @@ while IFS= read -r file; do
   dir=$(dirname "$file")
   claude_md="$dir/CLAUDE.md"
 
+  # If CLAUDE.md is a symlink pointing at this AGENTS.md, user already has
+  # equivalence set up — skip to avoid clobbering the symlink and causing
+  # double-injection via @AGENTS.md + inlined content.
+  if [ -L "$claude_md" ]; then
+    link_target=$(readlink "$claude_md")
+    case "$link_target" in
+      /*) resolved="$link_target" ;;
+      *)  resolved="$dir/$link_target" ;;
+    esac
+    if [ "$(cd "$(dirname "$resolved")" 2>/dev/null && pwd)/$(basename "$resolved")" = "$(cd "$dir" && pwd)/$(basename "$file")" ]; then
+      echo "$file" >> "$TRACK_FILE"
+      continue
+    fi
+  fi
+
   # Create or prepend CLAUDE.md
-  if [ ! -e "$claude_md" ]; then
+  if [ ! -e "$claude_md" ] && [ ! -L "$claude_md" ]; then
     echo "@AGENTS.md" > "$claude_md"
   elif ! grep -q "^@AGENTS.md" "$claude_md"; then
     tmp=$(mktemp)
