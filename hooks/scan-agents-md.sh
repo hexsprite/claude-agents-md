@@ -8,6 +8,31 @@
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 TRACK_FILE="${TMPDIR:-/tmp}/agents-md-injected-${SESSION_ID:-$$}"
 
+# Stage logging — set CLAUDE_AGENTS_MD_DEBUG=1 to get per-stage timings in
+# CLAUDE_AGENTS_MD_DEBUG_LOG (default ~/.claude/agents-md-debug.log). Useful
+# when you suspect this hook is causing UserPromptSubmit lag — `tail -f` the
+# log while you trigger a prompt and see which stage is slow.
+DEBUG="${CLAUDE_AGENTS_MD_DEBUG:-0}"
+DEBUG_LOG="${CLAUDE_AGENTS_MD_DEBUG_LOG:-$HOME/.claude/agents-md-debug.log}"
+_now_ms() {
+  /usr/bin/python3 -c 'import time; print(int(time.time()*1000))' 2>/dev/null \
+    || echo $(($(date +%s) * 1000))
+}
+_t0=$(_now_ms)
+_tprev=$_t0
+log_stage() {
+  [ "$DEBUG" = "1" ] || return 0
+  local now total step
+  now=$(_now_ms)
+  total=$((now - _t0))
+  step=$((now - _tprev))
+  _tprev=$now
+  printf '%s  pid=%-6d  +%5dms (Δ%5dms)  %s\n' \
+    "$(date '+%Y-%m-%d %H:%M:%S')" "$$" "$total" "$step" "$1" \
+    >> "$DEBUG_LOG"
+}
+log_stage "start  PROJECT_DIR=$PROJECT_DIR  cwd=$(pwd)"
+
 # Bail when PROJECT_DIR is $HOME or filesystem root — scanning trees that
 # large (Library, iCloud, mounted volumes) makes the hook hang for minutes
 # on every prompt. AGENTS.md scanning is meant for project trees, not $HOME.
@@ -18,9 +43,11 @@ if [ "${CLAUDE_AGENTS_MD_ALLOW_HOME:-0}" != "1" ]; then
   resolved_home=$(cd "${HOME:-/nonexistent}" 2>/dev/null && pwd -P)
   if [ -z "$resolved_dir" ] || [ "$resolved_dir" = "/" ] || \
      { [ -n "$resolved_home" ] && [ "$resolved_dir" = "$resolved_home" ]; }; then
+    log_stage "bail   reason=home-or-root  resolved=$resolved_dir"
     exit 0
   fi
 fi
+log_stage "guard  passed home/root check"
 
 # Ensure tracking file exists
 touch "$TRACK_FILE"
@@ -43,8 +70,10 @@ fi
 # walking the tree, and covers tracked + untracked-not-ignored files. Falls
 # back to fd/find on non-git trees.
 git_root=$(git -C "$PROJECT_DIR" rev-parse --show-toplevel 2>/dev/null)
+log_stage "git    root=${git_root:-<none>}"
 
 if [ -n "$git_root" ]; then
+  log_stage "scan   strategy=git-ls-files  root=$git_root"
   raw=$($TIMEOUT_CMD git -C "$git_root" ls-files --cached --others --exclude-standard 2>/dev/null \
     | grep -E '(^|/)AGENTS\.md$')
   files=""
@@ -52,18 +81,23 @@ if [ -n "$git_root" ]; then
     [ -z "$rel" ] && continue
     files="${files}${git_root}/${rel}"$'\n'
   done <<< "$raw"
+  log_stage "scan   done count=$(printf '%s' "$files" | grep -c .)"
 elif command -v fd &>/dev/null; then
   FD_EXCLUDES=""
   for ex in $EXCLUDES; do
     FD_EXCLUDES="$FD_EXCLUDES -E $ex"
   done
+  log_stage "scan   strategy=fd  dir=$PROJECT_DIR  timeout=${SCAN_TIMEOUT}s"
   files=$($TIMEOUT_CMD fd -t f -H $FD_EXCLUDES '^AGENTS\.md$' "$PROJECT_DIR" 2>/dev/null)
+  log_stage "scan   done count=$(printf '%s' "$files" | grep -c .)"
 else
   FIND_EXCLUDES=""
   for ex in $EXCLUDES; do
     FIND_EXCLUDES="$FIND_EXCLUDES -not -path */$ex/*"
   done
+  log_stage "scan   strategy=find  dir=$PROJECT_DIR  timeout=${SCAN_TIMEOUT}s"
   files=$($TIMEOUT_CMD find "$PROJECT_DIR" -name "AGENTS.md" $FIND_EXCLUDES 2>/dev/null)
+  log_stage "scan   done count=$(printf '%s' "$files" | grep -c .)"
 fi
 
 injected=0
@@ -121,5 +155,6 @@ done <<< "$files"
 if [ $injected -gt 0 ]; then
   echo "agents-md: injected $injected new AGENTS.md file(s)" >&2
 fi
+log_stage "end    injected=$injected"
 
 exit 0

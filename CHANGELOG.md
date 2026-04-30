@@ -2,6 +2,19 @@
 
 All notable changes to this plugin are documented here.
 
+## [1.3.0] - 2026-04-29
+
+### Added
+
+- **Stage-level debug logging.** Set `CLAUDE_AGENTS_MD_DEBUG=1` to record per-stage timings (start, guards, git detection, scan strategy, scan completion, end) to `~/.claude/agents-md-debug.log`. Override the path with `CLAUDE_AGENTS_MD_DEBUG_LOG=<path>`. Useful when diagnosing whether this hook is contributing to `UserPromptSubmit` latency — `tail -f` the log while triggering a prompt and the slow stage will be obvious.
+
+  ```bash
+  CLAUDE_AGENTS_MD_DEBUG=1 claude
+  tail -f ~/.claude/agents-md-debug.log
+  ```
+
+  Output format: `<timestamp>  pid=<n>  +<total>ms (Δ<step>ms)  <stage>  <details>`.
+
 ## [1.2.0] - 2026-04-29
 
 ### Changed
