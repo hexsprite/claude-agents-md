@@ -38,8 +38,21 @@ else
   TIMEOUT_CMD=""
 fi
 
-# Use fd if available (faster), otherwise fall back to find
-if command -v fd &>/dev/null; then
+# Prefer `git ls-files` when inside a git repo — honors .gitignore exactly
+# (including nested .gitignore files and negation patterns), much faster than
+# walking the tree, and covers tracked + untracked-not-ignored files. Falls
+# back to fd/find on non-git trees.
+git_root=$(git -C "$PROJECT_DIR" rev-parse --show-toplevel 2>/dev/null)
+
+if [ -n "$git_root" ]; then
+  raw=$($TIMEOUT_CMD git -C "$git_root" ls-files --cached --others --exclude-standard 2>/dev/null \
+    | grep -E '(^|/)AGENTS\.md$')
+  files=""
+  while IFS= read -r rel; do
+    [ -z "$rel" ] && continue
+    files="${files}${git_root}/${rel}"$'\n'
+  done <<< "$raw"
+elif command -v fd &>/dev/null; then
   FD_EXCLUDES=""
   for ex in $EXCLUDES; do
     FD_EXCLUDES="$FD_EXCLUDES -E $ex"

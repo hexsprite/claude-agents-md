@@ -2,6 +2,13 @@
 
 All notable changes to this plugin are documented here.
 
+## [1.2.0] - 2026-04-29
+
+### Changed
+
+- **Scan honors `.gitignore` when inside a git repo.** The hook now uses `git ls-files --cached --others --exclude-standard` when `PROJECT_DIR` is inside a git working tree. This honors all `.gitignore` rules (including nested files and negation patterns) instead of relying on a hard-coded exclude list, and it's faster than walking the tree by hand. Tracked and untracked-but-not-ignored `AGENTS.md` files are both surfaced; gitignored ones are skipped.
+- Non-git directories continue to use the existing `fd` / `find` fallback with the canned exclude list.
+
 ## [1.1.0] - 2026-04-29
 
 ### Changed

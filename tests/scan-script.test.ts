@@ -131,3 +131,69 @@ describe("scan-agents-md.sh safety guards", () => {
     expect(stdout).toContain("PROJECT_SCAN_TEST");
   });
 });
+
+async function gitInit(dir: string): Promise<void> {
+  const proc = Bun.spawn(["git", "init", "-q", "-b", "main", dir], {
+    stdout: "ignore",
+    stderr: "ignore",
+  });
+  await proc.exited;
+}
+
+describe("scan-agents-md.sh git integration", () => {
+  test("git repo: honors .gitignore (gitignored AGENTS.md is skipped)", async () => {
+    const { home, cleanup } = await makeFakeHome();
+    cleanups.push(cleanup);
+
+    const project = join(home, "myrepo");
+    await mkdir(project, { recursive: true });
+    await gitInit(project);
+
+    // One tracked AGENTS.md (must be injected) + one inside an ignored dir.
+    await writeFile(join(project, "AGENTS.md"), "TRACKED_AGENTS: yes.");
+    await writeFile(join(project, ".gitignore"), "ignored-dir/\n");
+    await mkdir(join(project, "ignored-dir"), { recursive: true });
+    await writeFile(
+      join(project, "ignored-dir", "AGENTS.md"),
+      "GITIGNORED_AGENTS: must NOT appear.",
+    );
+
+    const { stdout, exitCode } = await runScript({ projectDir: project, home });
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("TRACKED_AGENTS");
+    expect(stdout).not.toContain("GITIGNORED_AGENTS");
+  });
+
+  test("git repo: untracked-but-not-ignored AGENTS.md still picked up", async () => {
+    const { home, cleanup } = await makeFakeHome();
+    cleanups.push(cleanup);
+
+    const project = join(home, "myrepo2");
+    await mkdir(project, { recursive: true });
+    await gitInit(project);
+
+    // Untracked, not in .gitignore — git ls-files --others --exclude-standard
+    // should still surface this.
+    await writeFile(join(project, "AGENTS.md"), "UNTRACKED_AGENTS: yes.");
+
+    const { stdout, exitCode } = await runScript({ projectDir: project, home });
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("UNTRACKED_AGENTS");
+  });
+
+  test("non-git directory: still works via fd/find fallback", async () => {
+    const { home, cleanup } = await makeFakeHome();
+    cleanups.push(cleanup);
+
+    const project = join(home, "plaindir");
+    await mkdir(project, { recursive: true });
+    await writeFile(join(project, "AGENTS.md"), "PLAIN_DIR_AGENTS: yes.");
+
+    const { stdout, exitCode } = await runScript({ projectDir: project, home });
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("PLAIN_DIR_AGENTS");
+  });
+});
