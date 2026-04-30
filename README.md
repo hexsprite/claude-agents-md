@@ -72,7 +72,56 @@ If a `CLAUDE.md` already exists, the import is prepended — the plugin never co
 | **SessionStart** | Session begins | Initial scan — link and inject all `AGENTS.md` files |
 | **UserPromptSubmit** | Every prompt | Re-scan for new `AGENTS.md` files added mid-session |
 
-A temp file tracks which `AGENTS.md` files have been injected this session to avoid duplicates. The scanner uses [`fd`](https://github.com/sharkdp/fd) if available (faster), otherwise falls back to `find`. Both skip `node_modules`, `.git`, `vendor`, `dist`, `build`, `.next`, `.cache`, `__pycache__`, and `.venv`.
+A temp file tracks which `AGENTS.md` files have been injected this session to avoid duplicates.
+
+### Scan strategy
+
+The plugin picks the cheapest correct walker for the current tree, in order:
+
+1. **`git ls-files`** when `CLAUDE_PROJECT_DIR` is inside a git working tree. Honors all `.gitignore` rules — including nested `.gitignore` files and negation patterns — and surfaces both tracked and untracked-but-not-ignored `AGENTS.md` files. Fast even on large monorepos because it reads the index instead of walking the tree.
+2. **[`fd`](https://github.com/sharkdp/fd)** when not in a git repo. Honors `.gitignore` by default and respects the canned exclude list below.
+3. **`find`** as a final fallback when neither is available.
+
+For the `fd` and `find` paths, the canned exclude list is `node_modules .git vendor dist build .next .cache __pycache__ .venv`.
+
+### Safety guards
+
+The plugin runs on every `UserPromptSubmit`, so a slow walk can stall every prompt. Two guards keep this honest:
+
+- **`$HOME` / root bail.** If `CLAUDE_PROJECT_DIR` resolves to your home directory or filesystem root, the hook exits immediately. Scanning `~` traverses `Library`, iCloud, and mounted volumes — minutes per prompt. AGENTS.md scanning is meant for project trees, not `$HOME`.
+- **Per-scan timeout** (default 5s) wraps `fd` / `find` / `git ls-files`. Pathological trees (network mounts, FUSE, deep symlink loops) can no longer wedge the hook indefinitely.
+
+### Configuration
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `CLAUDE_AGENTS_MD_NO_SYMLINK` | `0` | Set to `1` to disable the `CLAUDE.md → AGENTS.md` symlink and use a `@AGENTS.md` text file instead. Auto-applied when symlinks fail. |
+| `CLAUDE_AGENTS_MD_ALLOW_HOME` | `0` | Set to `1` to opt back into scanning `$HOME` (e.g. dotfiles repo rooted at `$HOME`). |
+| `CLAUDE_AGENTS_MD_SCAN_TIMEOUT` | `5` | Per-scan timeout in seconds for the `fd` / `find` / `git ls-files` step. |
+| `CLAUDE_AGENTS_MD_DEBUG` | `0` | Set to `1` to log per-stage timings (start, guards, git detection, scan strategy, scan completion, end). |
+| `CLAUDE_AGENTS_MD_DEBUG_LOG` | `~/.claude/agents-md-debug.log` | Override the debug log path. |
+
+### Diagnosing UserPromptSubmit lag
+
+If you suspect this hook is contributing to prompt-submit latency, enable stage logging:
+
+```bash
+export CLAUDE_AGENTS_MD_DEBUG=1
+claude
+# in another terminal:
+tail -f ~/.claude/agents-md-debug.log
+```
+
+Each prompt produces a handful of timestamped lines like:
+
+```
+2026-04-29 20:53:06  pid=93501  +  126ms (Δ  41ms)  git    root=/Users/me/myrepo
+2026-04-29 20:53:06  pid=93501  +  156ms (Δ  30ms)  scan   strategy=git-ls-files  root=/Users/me/myrepo
+2026-04-29 20:53:06  pid=93501  +  217ms (Δ  61ms)  scan   done count=3
+2026-04-29 20:53:06  pid=93501  +  333ms (Δ 116ms)  end    injected=3
+```
+
+The slow stage will be obvious. If total time is well under a second, the lag isn't coming from this plugin.
 
 ## Usage
 
