@@ -3,7 +3,7 @@
  * Uses UserPromptSubmit hook to scan for new AGENTS.md files.
  */
 import { describe, test, expect, afterEach, setDefaultTimeout } from "bun:test";
-import { writeFile, readFile, mkdir } from "fs/promises";
+import { writeFile, mkdir, lstat, readlink } from "fs/promises";
 import { join } from "path";
 import { spawnClaude, createTempProject } from "./helpers";
 
@@ -47,9 +47,11 @@ describe("Mid-session AGENTS.md detection", () => {
     const output = await session.waitFor(/YARR/i, 30_000);
     expect(output).toMatch(/YARR/i);
 
-    // Verify CLAUDE.md was created
-    const claudeMd = await readFile(join(project.dir, "CLAUDE.md"), "utf-8");
-    expect(claudeMd.trim()).toBe("@AGENTS.md");
+    // Verify CLAUDE.md was created as a symlink to AGENTS.md
+    const claudeMdPath = join(project.dir, "CLAUDE.md");
+    const stat = await lstat(claudeMdPath);
+    expect(stat.isSymbolicLink()).toBe(true);
+    expect(await readlink(claudeMdPath)).toBe("AGENTS.md");
   });
 
   test("new subdirectory AGENTS.md picked up on next prompt", async () => {
@@ -78,9 +80,11 @@ describe("Mid-session AGENTS.md detection", () => {
     const output = await session.waitFor(/SUBMARINE/i, 30_000);
     expect(output).toMatch(/SUBMARINE/i);
 
-    // Verify CLAUDE.md was created in subdirectory
-    const claudeMd = await readFile(join(subDir, "CLAUDE.md"), "utf-8");
-    expect(claudeMd.trim()).toBe("@AGENTS.md");
+    // Verify CLAUDE.md was created in subdirectory as a symlink to AGENTS.md
+    const claudeMdPath = join(subDir, "CLAUDE.md");
+    const stat = await lstat(claudeMdPath);
+    expect(stat.isSymbolicLink()).toBe(true);
+    expect(await readlink(claudeMdPath)).toBe("AGENTS.md");
   });
 
   test("already-injected files are not re-injected on subsequent prompts", async () => {

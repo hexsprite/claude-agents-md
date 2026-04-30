@@ -2,6 +2,22 @@
 
 All notable changes to this plugin are documented here.
 
+## [1.1.0] - 2026-04-29
+
+### Changed
+
+- **`CLAUDE.md` is now a symlink to `AGENTS.md` by default** instead of a text file containing `@AGENTS.md`. Single source of truth — edits to `AGENTS.md` flow through with zero duplication, and build watchers that key off `**/*.md` no longer see an extra real file.
+
+### Added
+
+- `CLAUDE_AGENTS_MD_NO_SYMLINK=1` — opt out of symlinks and use the original `@AGENTS.md` text file behavior. Automatic fallback when symlinks fail (Windows without Developer Mode, certain network/container mounts).
+- Idempotency: when `CLAUDE.md` is already a symlink to `AGENTS.md`, the hook skips re-injection so the same content does not appear twice in context.
+- `tests/hook-direct.test.ts` — direct shell-level tests for symlink and fallback behavior.
+
+### Notes
+
+- An existing non-symlink `CLAUDE.md` is never converted into a symlink. The hook still prepends `@AGENTS.md` to preserve any Claude-specific content the user has added below.
+
 ## [1.0.2] - 2026-04-29
 
 ### Fixed

@@ -26,7 +26,7 @@ claude --plugin-dir /path/to/claude-agents-md
 
 For each `AGENTS.md` found in your project tree, the plugin:
 
-1. **Creates a `CLAUDE.md`** in the same directory containing `@AGENTS.md` (Claude Code's native import syntax), or prepends `@AGENTS.md` to an existing `CLAUDE.md` that doesn't already have it
+1. **Creates a `CLAUDE.md` symlink** pointing at `AGENTS.md` in the same directory (falling back to a `@AGENTS.md` text file on platforms that can't symlink), or prepends `@AGENTS.md` to an existing `CLAUDE.md` that doesn't already have it
 2. **Injects the content via stdout** for the current session (since Claude Code reads `CLAUDE.md` files before hooks fire on the first run)
 
 This means:
@@ -39,11 +39,20 @@ This means:
 If your project has an `AGENTS.md` but no `CLAUDE.md`:
 
 ```
-CLAUDE.md  (created by plugin, contains: @AGENTS.md)
+CLAUDE.md -> AGENTS.md   (relative symlink created by plugin)
+AGENTS.md                (your file, untouched)
+```
+
+The plugin prefers a symlink because it keeps a single source of truth — edits to `AGENTS.md` show up through `CLAUDE.md` with zero duplication, and build watchers that key off `**/*.md` won't see an extra real file.
+
+If your platform can't create symlinks (Windows without Developer Mode, certain network mounts) or you opt out with `CLAUDE_AGENTS_MD_NO_SYMLINK=1`, the plugin falls back to a `@AGENTS.md` text file:
+
+```
+CLAUDE.md  (contains: @AGENTS.md)
 AGENTS.md  (your file, untouched)
 ```
 
-If a `CLAUDE.md` already exists, the import is prepended:
+If a `CLAUDE.md` already exists, the import is prepended — the plugin never converts an existing file into a symlink:
 
 ```markdown
 @AGENTS.md
@@ -54,7 +63,7 @@ If a `CLAUDE.md` already exists, the import is prepended:
 ```
 
 > [!NOTE]
-> Generated `CLAUDE.md` files are real files you can edit, commit, or gitignore. The `@AGENTS.md` import is the only thing the plugin adds — you can put Claude-specific instructions below it.
+> When the fallback text file is used, `CLAUDE.md` is a normal file you can edit, commit, or gitignore — you can add Claude-specific instructions below the `@AGENTS.md` import. When a symlink is used and you later want to add Claude-only content, replace the symlink with a text file and the plugin will leave it alone.
 
 ### Hook events
 

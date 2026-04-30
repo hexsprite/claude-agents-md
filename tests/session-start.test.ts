@@ -2,7 +2,7 @@
  * Tests that AGENTS.md files are linked into CLAUDE.md at session start.
  */
 import { describe, test, expect, afterEach, setDefaultTimeout } from "bun:test";
-import { readFile, lstat, symlink } from "fs/promises";
+import { readFile, lstat, symlink, readlink } from "fs/promises";
 import { join } from "path";
 import { spawnClaude, createTempProject } from "./helpers";
 
@@ -38,9 +38,11 @@ describe("SessionStart hook", () => {
     const output = await session.waitFor(/PAPAYA/i, 30_000);
     expect(output).toMatch(/PAPAYA/i);
 
-    // Should also have created CLAUDE.md with @AGENTS.md for next session
-    const claudeMd = await readFile(join(project.dir, "CLAUDE.md"), "utf-8");
-    expect(claudeMd.trim()).toBe("@AGENTS.md");
+    // Should also have created CLAUDE.md as a symlink to AGENTS.md for next session
+    const claudeMdPath = join(project.dir, "CLAUDE.md");
+    const stat = await lstat(claudeMdPath);
+    expect(stat.isSymbolicLink()).toBe(true);
+    expect(await readlink(claudeMdPath)).toBe("AGENTS.md");
   });
 
   test("subdirectory AGENTS.md: creates CLAUDE.md (lazy load by CC)", async () => {
@@ -60,9 +62,11 @@ describe("SessionStart hook", () => {
     const output = await session.waitFor(/STARFRUIT/i, 30_000);
     expect(output).toMatch(/STARFRUIT/i);
 
-    // Verify CLAUDE.md was created
-    const claudeMd = await readFile(join(project.dir, "src", "CLAUDE.md"), "utf-8");
-    expect(claudeMd.trim()).toBe("@AGENTS.md");
+    // Verify CLAUDE.md was created as a symlink to AGENTS.md
+    const claudeMdPath = join(project.dir, "src", "CLAUDE.md");
+    const stat = await lstat(claudeMdPath);
+    expect(stat.isSymbolicLink()).toBe(true);
+    expect(await readlink(claudeMdPath)).toBe("AGENTS.md");
   });
 
   test("existing CLAUDE.md without import: prepends @AGENTS.md", async () => {
