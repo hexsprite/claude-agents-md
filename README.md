@@ -65,6 +65,23 @@ If a `CLAUDE.md` already exists, the import is prepended — the plugin never co
 > [!NOTE]
 > When the fallback text file is used, `CLAUDE.md` is a normal file you can edit, commit, or gitignore — you can add Claude-specific instructions below the `@AGENTS.md` import. When a symlink is used and you later want to add Claude-only content, replace the symlink with a text file and the plugin will leave it alone.
 
+### Should you commit `CLAUDE.md`?
+
+With this plugin enabled, **most projects should gitignore `CLAUDE.md` and commit only `AGENTS.md`**. Reasons:
+
+- The plugin regenerates `CLAUDE.md` on session start for anyone who has it installed — committing it is redundant.
+- In symlink mode, `CLAUDE.md` is just a pointer to `AGENTS.md`. Committed symlinks behave inconsistently across platforms (Windows checkouts, some CI runners materialize them as text files containing the target path).
+- Treating `AGENTS.md` as the single source of truth keeps cross-tool instructions (Cursor, Codex, Windsurf, Continue.dev, Claude) in one file.
+
+Recommended `.gitignore` entry:
+
+```gitignore
+CLAUDE.md
+**/CLAUDE.md
+```
+
+**Exception:** if you have Claude-specific instructions that shouldn't apply to other agents, use text-file mode (`CLAUDE_AGENTS_MD_NO_SYMLINK=1` or let the plugin fall back) and commit the `CLAUDE.md` with your Claude-only content below the `@AGENTS.md` import. The plugin won't touch an existing `CLAUDE.md` beyond ensuring the import line is at the top.
+
 ### Hook events
 
 | Event | When | Purpose |
