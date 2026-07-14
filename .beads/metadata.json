@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "claude_agents_md",
+  "project_id": "b17bedfe-73ad-49bc-96d2-be9a5c0074ec"
+}
