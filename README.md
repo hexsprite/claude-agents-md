@@ -107,7 +107,15 @@ v1 (the hook-based plugin — scan, symlink-or-inject, `UserPromptSubmit` re-sca
 
 ### Verify it's working
 
-Start a Claude Code session in a directory with an `AGENTS.md` and ask what's in its project instructions — it should reflect the `AGENTS.md` content as if it were `CLAUDE.md`. To confirm the helper itself loaded, enable `AGENTS_MD_VFS_DEBUG=1`: it prints `[agents-md-vfs] debug ON pid=… cwd=… log=…` to stderr at startup, then logs every gate decision to that per-pid file. `tail -f` the printed path while you drive a session.
+Start a Claude Code session in a directory with an `AGENTS.md` and ask what's in its project instructions — it should reflect the `AGENTS.md` content as if it were `CLAUDE.md`.
+
+To confirm the helper itself loaded, enable `AGENTS_MD_VFS_DEBUG=1`. It logs every gate decision to a per-pid file and, at startup, prints `[agents-md-vfs] debug ON pid=… cwd=… log=…` to stderr. Claude's TUI clears the screen on launch, so that line flashes past — instead of chasing the pid, tail the stable pointer that every debug session repoints at its own log:
+
+```bash
+tail -F /tmp/agents-md-vfs-latest.log   # -F re-opens when a new session repoints it
+```
+
+Then start `AGENTS_MD_VFS_DEBUG=1 claude` in another pane and watch the reads stream in.
 
 ## Running tests
 

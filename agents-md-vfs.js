@@ -42,12 +42,32 @@ function patch() {
       }
     : () => {};
 
+  // Stable pointer to the newest session's log. The per-pid default keeps
+  // concurrent sessions from interleaving, but Claude's TUI clears the screen
+  // on startup, so the stderr announce (and thus the pid) flashes past
+  // unreadably. Repointing a fixed symlink here means you can always
+  // `tail -F /tmp/agents-md-vfs-latest.log` — capital -F re-opens when a new
+  // session repoints it — without ever needing to catch the pid.
+  const LATEST_LINK = "/tmp/agents-md-vfs-latest.log";
+
   // One-time stderr confirmation so you can see at a glance that debug mode
   // took effect and where it is writing — no need to guess the filename.
   if (debug) {
     try {
+      // Point at the absolute log path so it resolves regardless of where a
+      // custom AGENTS_MD_VFS_LOG_PATH lives; unlink any stale pointer first.
+      try {
+        fs.unlinkSync(LATEST_LINK);
+      } catch {
+        // no existing pointer — fine
+      }
+      fs.symlinkSync(require("path").resolve(LOG_PATH), LATEST_LINK);
+    } catch {
+      // symlink is a convenience; its failure must never break the process
+    }
+    try {
       console.error(
-        `[agents-md-vfs] debug ON pid=${process.pid} cwd=${process.cwd()} log=${LOG_PATH}`
+        `[agents-md-vfs] debug ON pid=${process.pid} cwd=${process.cwd()} log=${LOG_PATH} (tail -F ${LATEST_LINK})`
       );
     } catch {
       // never let the announce break the patched process

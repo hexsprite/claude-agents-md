@@ -13,7 +13,7 @@
  * BUN_OPTIONS="--require agents-md-vfs.js" against temp directories.
  */
 import { describe, test, expect, beforeAll, afterAll, afterEach, setDefaultTimeout } from "bun:test";
-import { mkdtemp, rm, symlink } from "fs/promises";
+import { mkdtemp, rm, symlink, realpath } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 import { createTempProject } from "./helpers";
@@ -333,6 +333,32 @@ describe("agents-md-vfs.js", () => {
         .text()
         .catch(() => "");
       expect(log).toContain("vfs loaded");
+      await rm(logPath, { force: true });
+    });
+
+    // TUI clears the screen on startup, so the stderr announce (and the pid in
+    // it) flashes past. The stable /tmp/agents-md-vfs-latest.log symlink is the
+    // durable way to `tail -F` the current session's log without the pid.
+    test("repoints /tmp/agents-md-vfs-latest.log at the active per-pid log", async () => {
+      const proc = Bun.spawn([compiledNoTouchBin], {
+        env: {
+          ...process.env,
+          BUN_OPTIONS: `--require ${VFS_PATH}`,
+          AGENTS_MD_VFS_DEBUG: "1",
+          AGENTS_MD_VFS_LOG_PATH: "",
+        },
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      const exitCode = await proc.exited;
+      const stderr = await new Response(proc.stderr).text();
+      expect(exitCode).toBe(0);
+
+      const logPath = stderr.match(/log=(\/tmp\/agents-md-vfs-\d+\.log)/)![1];
+      const linkTarget = await realpath("/tmp/agents-md-vfs-latest.log").catch(
+        () => ""
+      );
+      expect(linkTarget).toBe(await realpath(logPath));
       await rm(logPath, { force: true });
     });
   });
