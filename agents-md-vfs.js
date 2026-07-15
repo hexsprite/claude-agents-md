@@ -26,7 +26,12 @@ function patch() {
   const path = require("path");
 
   const debug = !!process.env.AGENTS_MD_VFS_DEBUG;
-  const LOG_PATH = process.env.AGENTS_MD_VFS_LOG_PATH || "/tmp/agents-md-vfs.log";
+  // AGENTS_MD_VFS_DEBUG=1 alone is enough: default to a per-process file in
+  // /tmp so concurrent claude sessions never interleave into one log (the
+  // thing that made cross-session reads look like they belonged here).
+  // AGENTS_MD_VFS_LOG_PATH still overrides when you want a fixed path.
+  const LOG_PATH =
+    process.env.AGENTS_MD_VFS_LOG_PATH || `/tmp/agents-md-vfs-${process.pid}.log`;
   const LOG = debug
     ? (m) => {
         try {
@@ -36,6 +41,18 @@ function patch() {
         }
       }
     : () => {};
+
+  // One-time stderr confirmation so you can see at a glance that debug mode
+  // took effect and where it is writing — no need to guess the filename.
+  if (debug) {
+    try {
+      console.error(
+        `[agents-md-vfs] debug ON pid=${process.pid} cwd=${process.cwd()} log=${LOG_PATH}`
+      );
+    } catch {
+      // never let the announce break the patched process
+    }
+  }
 
   // CANARY: set true the first time any patched fs entry point sees a
   // CLAUDE.md path (regardless of resolution outcome). If the helper loads

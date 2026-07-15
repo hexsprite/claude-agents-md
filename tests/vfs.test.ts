@@ -303,4 +303,37 @@ describe("agents-md-vfs.js", () => {
       expect(log).toContain("vfs loaded");
     });
   });
+
+  // AGENTS_MD_VFS_DEBUG=1 alone must enable logging (no AGENTS_MD_VFS_LOG_PATH
+  // required) to a per-process /tmp file, and announce on stderr that debug is
+  // on plus where it writes. Regression for the shared-log confusion where
+  // concurrent sessions interleaved into one fixed /tmp/agents-md-vfs.log.
+  describe("debug announce + default per-pid log", () => {
+    test("DEBUG=1 without LOG_PATH announces on stderr and writes /tmp/agents-md-vfs-<pid>.log", async () => {
+      const proc = Bun.spawn([compiledNoTouchBin], {
+        env: {
+          ...process.env,
+          BUN_OPTIONS: `--require ${VFS_PATH}`,
+          AGENTS_MD_VFS_DEBUG: "1",
+          AGENTS_MD_VFS_LOG_PATH: "", // explicitly unset — exercise the default
+        },
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      const exitCode = await proc.exited;
+      const stderr = await new Response(proc.stderr).text();
+
+      expect(exitCode).toBe(0);
+      expect(stderr).toContain("[agents-md-vfs] debug ON");
+
+      const m = stderr.match(/log=(\/tmp\/agents-md-vfs-\d+\.log)/);
+      expect(m).not.toBeNull();
+      const logPath = m![1];
+      const log = await Bun.file(logPath)
+        .text()
+        .catch(() => "");
+      expect(log).toContain("vfs loaded");
+      await rm(logPath, { force: true });
+    });
+  });
 });

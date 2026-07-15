@@ -101,12 +101,13 @@ v1 (the hook-based plugin — scan, symlink-or-inject, `UserPromptSubmit` re-sca
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `AGENTS_MD_VFS_DEBUG` | unset | Set to `1` to append helper activity (gate decisions, which of the four branches a given `CLAUDE.md` read took) to a debug log file. |
+| `AGENTS_MD_VFS_DEBUG` | unset | Set to `1` to log helper activity (gate decisions, which of the four branches a given `CLAUDE.md` read took) to a per-process file `/tmp/agents-md-vfs-<pid>.log`, and print a one-line `[agents-md-vfs] debug ON …` confirmation to stderr at startup. Per-process default means concurrent sessions never interleave into one log. |
+| `AGENTS_MD_VFS_LOG_PATH` | `/tmp/agents-md-vfs-<pid>.log` | Override the debug log path with a fixed filename (only meaningful when `AGENTS_MD_VFS_DEBUG=1`). |
 | `AGENTS_MD_VFS_SRC` | unset | **install.sh only.** Local path to `agents-md-vfs.js` to copy instead of curling the published one — for testing installer changes from a clone without publishing first. |
 
 ### Verify it's working
 
-Start a Claude Code session in a directory with an `AGENTS.md` and ask what's in its project instructions — it should reflect the `AGENTS.md` content as if it were `CLAUDE.md`. To confirm the helper itself loaded, enable `AGENTS_MD_VFS_DEBUG=1` and tail the log while starting a session.
+Start a Claude Code session in a directory with an `AGENTS.md` and ask what's in its project instructions — it should reflect the `AGENTS.md` content as if it were `CLAUDE.md`. To confirm the helper itself loaded, enable `AGENTS_MD_VFS_DEBUG=1`: it prints `[agents-md-vfs] debug ON pid=… cwd=… log=…` to stderr at startup, then logs every gate decision to that per-pid file. `tail -f` the printed path while you drive a session.
 
 ## Running tests
 
