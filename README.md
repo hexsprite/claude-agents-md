@@ -1,6 +1,6 @@
 # agents-md
 
-> Makes Claude Code load `AGENTS.md` files — no per-project config needed.
+> Make Claude Code read `AGENTS.md` files — zero per-project config, no repo files.
 
 Many AI coding tools use `AGENTS.md` for project-level instructions (Cursor, Codex, Windsurf, Continue.dev, etc.), but Claude Code only reads `CLAUDE.md`. agents-md bridges the gap so your cross-tool instructions just work.
 
@@ -134,7 +134,6 @@ claude-agents-md/
 ├── agents-md-vfs.js        # the preload helper (v2) — gate, redirect, merge
 ├── install.sh                # curl-installable installer (v2)
 ├── uninstall.sh                # matching uninstaller (v2)
-├── experiments/v2-vfs/          # original prototypes, kept as reference
 ├── hooks/                        # v1 hook — frozen, see the `v1` branch
 ├── tests/
 │   ├── helpers.ts                 # PTY test harness (Bun.Terminal)
